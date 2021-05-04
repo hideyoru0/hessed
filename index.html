@@ -1,9 +1,151 @@
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>대한민국 No.1 카페24 호스팅</title>
-</head>
-<body>
-<iframe frameborder=0 scrolling=no marginwidth=0 marginheight=0 width=100% height=100%  src=http://hostinfo.cafe24.com/index.php?hostname=<?=$hostname;?>></iframe>
-</body>
-</html>
+<?php
+define('__MG__', true); 
+
+error_reporting(1);
+error_reporting(E_ALL ^ E_NOTICE);
+
+Header('P3P: CP=\"ALL IND DSP COR ADM CONo CUR CUSo IVAo IVDo PSA PSD TAI TELo OUR SAMo CNT COM INT NAV ONL PHY PRE PUR UNI\"');
+Header('Content-Type: text/html; charset=UTF-8');
+
+#------------------------------------------------------------------------------
+# 기본 설정
+#------------------------------------------------------------------------------
+define('__BASE_DIR__',    str_replace("company/index.php", "", __FILE__));
+define('__CLASSES_DIR__', __BASE_DIR__ . "_classes/");
+define('__INCLUDE_DIR__', __BASE_DIR__ . "_include/");
+define('__HOME_DIR__',    __BASE_DIR__ . "company/");
+define('__OFFICE_DIR__',  __BASE_DIR__ . "office/");
+define('__SCHOOL_DIR__',  __BASE_DIR__ . "school/");
+define('__FORM_DIR__',    __BASE_DIR__ . "form/");
+define('__UPLOAD_DIR__',  __BASE_DIR__ . "file/");
+define('__SESSION_DIR__', __BASE_DIR__ . "session/company/");
+define('__LOG_DIR__',     __BASE_DIR__ . "logs/company/");
+
+
+$SITE_INFO['lang']        = $_REQUEST['lang'];
+$SITE_INFO['http_host']   = $_SERVER['HTTP_HOST'];
+
+if(!$SITE_INFO['lang']) $SITE_INFO['lang'] = 'ko';
+
+
+$segments = array(); 
+
+
+foreach (explode("/", preg_replace("|/*(.+?)/*$|", "\\1", detect_uri())) as $val)
+{
+    $segments[] = trim($val);
+}
+
+function detect_uri()
+{
+    if ( ! isset($_SERVER['REQUEST_URI']) OR ! isset($_SERVER['SCRIPT_NAME'])) {
+        return '';
+    }
+
+    $uri = $_SERVER['REQUEST_URI'];
+
+    if (strpos($uri, $_SERVER['SCRIPT_NAME']) === 0) {
+        $uri = substr($uri, strlen($_SERVER['SCRIPT_NAME']));
+    } elseif (strpos($uri, dirname($_SERVER['SCRIPT_NAME'])) === 0) {
+        $uri = substr($uri, strlen(dirname($_SERVER['SCRIPT_NAME'])));
+    }
+
+    if (strncmp($uri, '?/', 2) === 0) {
+        $uri = substr($uri, 2);
+    }
+
+    $parts = preg_split('#\?#i', $uri, 20);
+    if (isset($parts[1])) {
+        $_SERVER['QUERY_STRING'] = $parts[1];
+
+        parse_str($_SERVER['QUERY_STRING'], $_GET);
+    } else {
+        $_SERVER['QUERY_STRING'] = '';
+        $_GET = array();
+    }
+
+    if ($uri == '/' || empty($uri)) {
+        return '';
+    }
+    
+    $uri = parse_url($uri, PHP_URL_PATH);
+    return str_replace(array('../'), '/', $uri);
+}
+
+#--------------------------------------------------------------------------------
+# include
+#--------------------------------------------------------------------------------
+require_once __INCLUDE_DIR__ . "site.php";
+require_once __INCLUDE_DIR__ . "lang.php";
+require_once __INCLUDE_DIR__ . "db.php";
+require_once __INCLUDE_DIR__ . "function.php";
+require_once __INCLUDE_DIR__ . "connect.php";
+require_once __INCLUDE_DIR__ . "session.php";
+require_once __CLASSES_DIR__ . "Template_2.2.8/Template_.class.php";
+
+require_once __HOME_DIR__ . "include/menu.php";
+
+
+#--------------------------------------------------------------------------------
+# home
+#--------------------------------------------------------------------------------
+if(sizeof($segments) == 1) {
+    if(is_file(__HOME_DIR__ . "modules/local/home/index.php")) {
+        require_once __HOME_DIR__ . "modules/local/home/index.php";
+
+    } else if(is_file(__HOME_DIR__ . "modules/global/home/index.php")) {
+        require_once __HOME_DIR__ . "modules/global/home/index.php";
+
+    } else {
+        Header("Location: /404.html");
+        MgExit();
+    }
+
+
+#--------------------------------------------------------------------------------
+# program  // http://tadmin.smartposting.net/010100/member/list
+#    - execute member login // http://tadmin.smartposting.net/000000/member/proc_login
+#    - form member login    // http://tadmin.smartposting.net/000000/member/form_login
+#    - form member update   // http://tadmin.smartposting.net/000000/member/form_update
+#--------------------------------------------------------------------------------
+} elseif(sizeof($segments) > 2) {
+    $menugrp = $segments[0];
+    $master  = $segments[1];
+    $action  = $segments[2];
+
+    if(substr($action, 0, 4) == 'proc' || substr($action, 0, 4) == 'json') { // execute
+        if(is_file(__HOME_DIR__ . "/modules/local/{$master}/{$action}.php")) {
+            require_once __HOME_DIR__ . "/modules/local/{$master}/{$action}.php";
+
+        } elseif(is_file(__HOME_DIR__ . "/modules/global/{$master}/{$action}.php")) {
+            require_once __HOME_DIR__ . "/modules/global/{$master}/{$action}.php";
+
+        } else {
+            Header("Location: /404.html");
+            MgExit();
+        }
+    } else { // form
+        if(is_file(__HOME_DIR__ . "modules/local/home/main.php")) {
+            require_once __HOME_DIR__ . "modules/local/home/main.php";
+            
+        } else if(is_file(__HOME_DIR__ . "modules/global/home/main.php")) {
+            require_once __HOME_DIR__ . "modules/global/home/main.php";
+
+        } else {
+            Header("Location: /404.html");
+            MgExit();
+        }
+    }
+
+} else {
+    print_r($segments);
+
+    exit();
+}
+
+
+#--------------------------------------------------------------------------------
+# include
+#--------------------------------------------------------------------------------
+require_once __INCLUDE_DIR__ . "disconnect.php";
+
